@@ -4,11 +4,11 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/mcporter"><img src="https://img.shields.io/npm/v/mcporter?style=for-the-badge&logo=npm&logoColor=white" alt="npm version"></a>
-  <a href="https://github.com/steipete/mcporter/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/steipete/mcporter/ci.yml?branch=main&style=for-the-badge&label=tests" alt="CI Status"></a>
-  <a href="https://github.com/steipete/mcporter"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=for-the-badge" alt="Platforms"></a>
+  <a href="https://www.npmjs.com/package/@nimrobo/mcporter-remote"><img src="https://img.shields.io/npm/v/@nimrobo/mcporter-remote?style=for-the-badge&logo=npm&logoColor=white" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT License"></a>
 </p>
+
+> **This is a Nimrobo fork of [steipete/mcporter](https://github.com/steipete/mcporter).** Published as [`@nimrobo/mcporter-remote`](https://www.npmjs.com/package/@nimrobo/mcporter-remote). It adds support for remote (browser-less) OAuth flows on dev boxes and remote pods.
 
 _TypeScript runtime, CLI, and code-generation toolkit for the Model Context Protocol._
 
@@ -22,6 +22,18 @@ MCPorter helps you lean into the "code execution" workflows highlighted in Anthr
 - **Friendly composable API.** `createServerProxy()` exposes tools as ergonomic camelCase methods, automatically applies JSON-schema defaults, validates required arguments, and hands back a `CallResult` with `.text()`, `.markdown()`, `.json()`, `.images()`, and `.content()` helpers.
 - **OAuth and stdio ergonomics.** Built-in OAuth caching, log tailing, and stdio wrappers let you work with HTTP, SSE, and stdio transports from the same interface.
 - **Ad-hoc connections.** Point the CLI at *any* MCP endpoint (HTTP or stdio) without touching config, then persist it later if you want. Hosted MCPs that expect a browser login (Supabase, Vercel, etc.) are auto-detected—just run `mcporter auth <url>` and the CLI promotes the definition to OAuth on the fly. See [docs/adhoc.md](docs/adhoc.md).
+
+## Installation
+
+```bash
+# Install globally
+npm install -g @nimrobo/mcporter-remote
+
+# Or run without installing
+npx @nimrobo/mcporter-remote list
+```
+
+After global install the CLI is available as `mcporter`.
 
 ## Quick Start
 

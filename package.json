@@ -1,6 +1,6 @@
 {
-  "name": "mcporter",
-  "version": "0.7.4",
+  "name": "@nimrobo/mcporter-remote",
+  "version": "0.1.0",
   "description": "TypeScript runtime and CLI for connecting to configured Model Context Protocol servers.",
   "packageManager": "pnpm@10.22.0",
   "pnpm": {
@@ -80,7 +80,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/steipete/mcporter"
+    "url": "https://github.com/Nimrobo/mcporter-remote"
   },
   "keywords": [
     "mcp",
@@ -88,7 +88,8 @@
     "cli",
     "sweetistics"
   ],
-  "author": "Sweetistics",
+  "homepage": "https://nimroboai.com",
+  "author": "Nimrobo AI",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
