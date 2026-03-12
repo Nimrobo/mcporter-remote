@@ -14,6 +14,20 @@ _TypeScript runtime, CLI, and code-generation toolkit for the Model Context Prot
 
 MCPorter helps you lean into the "code execution" workflows highlighted in Anthropic's **Code Execution with MCP** guidance: discover the MCP servers already configured on your system, call them directly, compose richer automations in TypeScript, and mint single-purpose CLIs when you need to share a tool. All of that works out of the box -- no boilerplate, no schema spelunking.
 
+## Remote OAuth (`--browser none`)
+
+On a remote dev box or pod there's no browser to open — the standard OAuth flow hangs waiting for a redirect that never arrives. `--browser none` solves this with a two-step manual flow:
+
+```bash
+# Step 1 — print the authorization URL without opening a browser or binding a callback server
+mcporter auth <server|url> --browser none
+
+# Step 2 — after your local browser redirects to a failing localhost URL, paste it here
+mcporter auth complete 'http://127.0.0.1:PORT/callback?code=...&state=...'
+```
+
+mcporter matches the `state` parameter to the pending session automatically, exchanges the code for tokens, and saves them — no config edits needed. Works with named servers (`mcporter auth linear --browser none`) and bare URLs alike.
+
 ## Key Capabilities
 
 - **Zero-config discovery.** `createRuntime()` merges your home config (`~/.mcporter/mcporter.json[c]`) first, then `config/mcporter.json`, plus Cursor/Claude/Codex/Windsurf/OpenCode/VS Code imports, expands `${ENV}` placeholders, and pools connections so you can reuse transports across multiple calls.
