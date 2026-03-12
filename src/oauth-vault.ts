@@ -85,6 +85,16 @@ export async function saveVaultEntry(definition: ServerDefinition, patch: Partia
   await writeVault(vault);
 }
 
+export async function findServerNameByState(state: string): Promise<VaultEntry | undefined> {
+  const vault = await readVault();
+  for (const entry of Object.values(vault.entries)) {
+    if (entry.state === state) {
+      return entry;
+    }
+  }
+  return undefined;
+}
+
 export async function clearVaultEntry(
   definition: ServerDefinition,
   scope: 'all' | 'tokens' | 'client' | 'verifier' | 'state'

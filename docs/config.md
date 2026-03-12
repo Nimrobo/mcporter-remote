@@ -124,7 +124,8 @@ Use `--scope home|project` with `mcporter config add` to pick the write target e
 
 ### `mcporter config login <name|url>` / `logout`
 - Mirrors `mcporter auth`. `login` completes OAuth (or token provisioning) for either a named server or an ad-hoc URL. When a hosted MCP returns 401/403, mcporter automatically promotes that target to OAuth and re-runs the flow, matching the behavior documented in `docs/adhoc.md`.
-- `--browser none` suppresses automatic browser launch (useful for copying the URL into a remote browser).
+- `--browser none` starts a manual remote-friendly OAuth flow: mcporter prints the authorization URL, does not open a browser, and does not bind a local callback server.
+- Finish manual flows with `mcporter auth complete '<pasted-redirect-url>'`. The pasted callback must contain the same OAuth `state` that mcporter persisted when the flow started.
 - `logout` wipes token caches under `~/.mcporter/<name>/` (or the custom `tokenCacheDir`). Pass `--all` to clear everything.
 
 ### `mcporter config doctor`
@@ -195,6 +196,7 @@ mcporter normalizes headers to include `Accept: application/json, text/event-str
 
 ## Validation & Troubleshooting
 - `mcporter list --http-url ...` refuses to auto-run OAuth to keep listing commands quick; use `mcporter config login ...` or `mcporter auth ...` to finish credential setup.
+- For remote pods/dev boxes, prefer `mcporter auth <name|url> --browser none`, open the printed URL in your local browser, then paste the failed localhost redirect into `mcporter auth complete`.
 - When env placeholders are missing, commands fail fast with the exact variable name. Add the variable or wrap it in `${VAR:-fallback}` to provide defaults.
 - Use `mcporter config get <name> --show-source` (planned flag) to confirm whether a server came from an import. If a teammate’s Cursor config keeps overriding your local entry, reorder the `imports` array to move Cursor later or set it to `[]` to disable imports entirely.
 - `docs/adhoc.md` covers deeper debugging, including tmux workflows and OAuth promotion logs.

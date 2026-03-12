@@ -61,6 +61,7 @@ The CLI still avoids surprise prompts during `mcporter list`; the upgrade happen
 
 - OAuth flows are allowed; successful tokens store under the inferred name just like regular definitions.
 - `mcporter auth` accepts the same `--http-url/--stdio` flags (and even bare URLs), so you can immediately re-run `mcporter auth https://…` after a 401 without touching a config file.
+- For remote environments, run `mcporter auth <url> --browser none`, open the printed URL locally, then complete the flow with `mcporter auth complete '<failed-localhost-redirect>'`.
 - Nothing is written to disk unless you pass `--persist /path/to/config.json`. When set, we merge the generated definition into that file (creating it if necessary) so future runs can rely on the standard config pipeline.
 
 ## Safety Nets

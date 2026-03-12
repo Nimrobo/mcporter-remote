@@ -67,13 +67,16 @@ class PersistentOAuthClientProvider implements OAuthClientProvider {
   private redirectUrlValue: URL;
   private authorizationDeferred: Deferred<string> | null = null;
   private server?: http.Server;
+  private readonly manual: boolean;
 
   private constructor(
     private readonly definition: ServerDefinition,
     persistence: OAuthPersistence,
     redirectUrl: URL,
-    logger: OAuthLogger
+    logger: OAuthLogger,
+    manual = false
   ) {
+    this.manual = manual;
     this.redirectUrlValue = redirectUrl;
     this.logger = logger;
     this.persistence = persistence;
@@ -165,6 +168,73 @@ class PersistentOAuthClientProvider implements OAuthClientProvider {
     };
   }
 
+  // createManual starts the server only to acquire a dynamic port for the redirect URI, then
+  // immediately closes it. redirectToAuthorization prints the URL instead of opening a browser,
+  // and the process exits after printing — the user completes the flow with `auth complete`.
+  static async createManual(
+    definition: ServerDefinition,
+    logger: OAuthLogger
+  ): Promise<{ provider: PersistentOAuthClientProvider; close: () => Promise<void> }> {
+    const persistence = await buildOAuthPersistence(definition, logger);
+
+    const server = http.createServer();
+    const overrideRedirect = definition.oauthRedirectUrl ? new URL(definition.oauthRedirectUrl) : null;
+    const listenHost = overrideRedirect?.hostname ?? CALLBACK_HOST;
+    const overridePort = overrideRedirect?.port ?? '';
+    const usesDynamicPort = !overrideRedirect || overridePort === '' || overridePort === '0';
+    const desiredPort = usesDynamicPort ? undefined : Number.parseInt(overridePort, 10);
+    const callbackPath =
+      overrideRedirect?.pathname && overrideRedirect.pathname !== '/' ? overrideRedirect.pathname : CALLBACK_PATH;
+
+    const port = await new Promise<number>((resolve, reject) => {
+      server.listen(desiredPort ?? 0, listenHost, () => {
+        const address = server.address();
+        if (typeof address === 'object' && address && 'port' in address) {
+          resolve(address.port);
+        } else {
+          reject(new Error('Failed to determine callback port'));
+        }
+      });
+      server.once('error', (error) => reject(error));
+    });
+
+    const redirectUrl = overrideRedirect
+      ? new URL(overrideRedirect.toString())
+      : new URL(`http://${listenHost}:${port}${callbackPath}`);
+    if (usesDynamicPort) {
+      redirectUrl.port = String(port);
+    }
+    if (!overrideRedirect || overrideRedirect.pathname === '/' || overrideRedirect.pathname === '') {
+      redirectUrl.pathname = callbackPath;
+    }
+
+    // Close the server immediately — manual flow doesn't need a running callback listener.
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+
+    if (usesDynamicPort) {
+      try {
+        const cachedClient = await persistence.readClientInfo();
+        const cachedRedirect = firstRedirectUri(cachedClient);
+        if (cachedRedirect && cachedRedirect !== redirectUrl.toString()) {
+          logger.info(
+            `Redirect URI changed (${cachedRedirect} → ${redirectUrl.toString()}); clearing stale client registration.`
+          );
+          await persistence.clear('client');
+        }
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    const provider = new PersistentOAuthClientProvider(definition, persistence, redirectUrl, logger, true);
+    return {
+      provider,
+      close: async () => {
+        // Server is already closed; nothing to do.
+      },
+    };
+  }
+
   // attachServer listens for the OAuth redirect and resolves/rejects the deferred code promise.
   private attachServer(server: http.Server) {
     this.server = server;
@@ -252,6 +322,10 @@ class PersistentOAuthClientProvider implements OAuthClientProvider {
   }
 
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
+    if (this.manual) {
+      console.log(`\nAuthorization URL:\n  ${authorizationUrl.toString()}\n`);
+      return;
+    }
     this.logger.info(`Authorization required for ${this.definition.name}. Opening browser...`);
     this.ensureAuthorizationDeferred();
     __oauthInternals.openExternal(authorizationUrl.toString());
@@ -277,7 +351,11 @@ class PersistentOAuthClientProvider implements OAuthClientProvider {
 
   // waitForAuthorizationCode resolves once the local callback server captures a redirect.
   // The same deferred is shared with redirectToAuthorization so callback resolution is stable.
+  // In manual mode, throws ManualFlowInitiatedError to signal that the process should exit.
   async waitForAuthorizationCode(): Promise<string> {
+    if (this.manual) {
+      throw new ManualFlowInitiatedError();
+    }
     return this.ensureAuthorizationDeferred().promise;
   }
 
@@ -344,3 +422,77 @@ function firstRedirectUri(client: OAuthClientInformationMixed | undefined): stri
 export const __oauthInternals = {
   openExternal,
 };
+
+// ManualFlowInitiatedError is thrown by waitForAuthorizationCode() in manual mode to signal
+// that the process should exit cleanly after printing the authorization URL.
+export class ManualFlowInitiatedError extends Error {
+  constructor() {
+    super('Manual OAuth flow initiated. Run `mcporter auth complete <pasted-redirect-url>` to finish.');
+    this.name = 'ManualFlowInitiatedError';
+  }
+}
+
+// createManualOAuthSession returns an OAuthClientProvider for --browser none flows.
+// It acquires a redirect URI via a short-lived callback server, then closes the server.
+// redirectToAuthorization prints the URL instead of opening a browser.
+export async function createManualOAuthSession(
+  definition: ServerDefinition,
+  logger: OAuthLogger
+): Promise<{ provider: OAuthClientProvider; close: () => Promise<void> }> {
+  return PersistentOAuthClientProvider.createManual(definition, logger);
+}
+
+// createCodeExchangeProvider builds a minimal OAuthClientProvider for `auth complete`.
+// It reads persisted PKCE and client artifacts to exchange an authorization code for tokens.
+export async function createCodeExchangeProvider(
+  definition: ServerDefinition,
+  redirectUrl: URL,
+  logger: OAuthLogger
+): Promise<OAuthClientProvider> {
+  const persistence = await buildOAuthPersistence(definition, logger);
+  const metadata: OAuthClientMetadata = {
+    client_name: definition.clientName ?? `mcporter (${definition.name})`,
+    redirect_uris: [redirectUrl.toString()],
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'none',
+    ...(definition.oauthScope !== undefined ? { scope: definition.oauthScope || undefined } : {}),
+  };
+  return {
+    get redirectUrl() {
+      return redirectUrl;
+    },
+    get clientMetadata() {
+      return metadata;
+    },
+    async state() {
+      return (await persistence.readState()) ?? randomUUID();
+    },
+    async clientInformation() {
+      return persistence.readClientInfo();
+    },
+    async saveClientInformation(info) {
+      await persistence.saveClientInfo(info);
+    },
+    async tokens() {
+      return persistence.readTokens();
+    },
+    async saveTokens(tokens) {
+      await persistence.saveTokens(tokens);
+      logger.info(`Saved OAuth tokens for ${definition.name} (${persistence.describe()})`);
+    },
+    async saveCodeVerifier(v) {
+      await persistence.saveCodeVerifier(v);
+    },
+    async codeVerifier() {
+      const v = await persistence.readCodeVerifier();
+      if (!v) {
+        throw new Error(`Missing PKCE code verifier for ${definition.name}`);
+      }
+      return v.trim();
+    },
+    async redirectToAuthorization() {
+      throw new Error('redirectToAuthorization called unexpectedly during auth complete');
+    },
+  };
+}
