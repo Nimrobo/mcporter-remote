@@ -2,14 +2,11 @@ import { spawn } from 'node:child_process';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { auth as mcpAuth } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { ServerDefinition } from '../config-schema.js';
-import type { VaultEntry } from '../oauth-vault.js';
 import { analyzeConnectionError } from '../error-classifier.js';
-import {
-  buildOAuthPersistence,
-  clearOAuthCaches,
-} from '../oauth-persistence.js';
-import { parseManualOAuthCallback } from '../oauth-manual.js';
 import { createCodeExchangeProvider, createManualOAuthSession } from '../oauth.js';
+import { parseManualOAuthCallback } from '../oauth-manual.js';
+import { buildOAuthPersistence, clearOAuthCaches } from '../oauth-persistence.js';
+import type { VaultEntry } from '../oauth-vault.js';
 import { findServerNameByState } from '../oauth-vault.js';
 import type { createRuntime } from '../runtime.js';
 import type { EphemeralServerSpec } from './adhoc-server.js';
@@ -245,7 +242,12 @@ function makeLogger() {
     info: (msg: string) => logInfo(msg),
     warn: (msg: string) => logWarn(msg),
     error: (msg: string, err?: unknown) => {
-      const detail = err instanceof Error ? `: ${err.message}` : err != null ? `: ${String(err)}` : '';
+      const detail =
+        err instanceof Error
+          ? `: ${err.message}`
+          : err != null
+            ? `: ${typeof err === 'object' ? JSON.stringify(err) : String(err as string)}`
+            : '';
       logWarn(`${msg}${detail}`);
     },
   };

@@ -212,17 +212,13 @@ class PersistentOAuthClientProvider implements OAuthClientProvider {
     await new Promise<void>((resolve) => server.close(() => resolve()));
 
     if (usesDynamicPort) {
-      try {
-        const cachedClient = await persistence.readClientInfo();
-        const cachedRedirect = firstRedirectUri(cachedClient);
-        if (cachedRedirect && cachedRedirect !== redirectUrl.toString()) {
-          logger.info(
-            `Redirect URI changed (${cachedRedirect} → ${redirectUrl.toString()}); clearing stale client registration.`
-          );
-          await persistence.clear('client');
-        }
-      } catch (error) {
-        throw error;
+      const cachedClient = await persistence.readClientInfo();
+      const cachedRedirect = firstRedirectUri(cachedClient);
+      if (cachedRedirect && cachedRedirect !== redirectUrl.toString()) {
+        logger.info(
+          `Redirect URI changed (${cachedRedirect} → ${redirectUrl.toString()}); clearing stale client registration.`
+        );
+        await persistence.clear('client');
       }
     }
 

@@ -13,7 +13,7 @@ const packageRoot = fileURLToPath(new URL('../../..', import.meta.url));
 // Generated CLIs import commander/mcporter, but end-users run mcporter from directories
 // that often lack node_modules. Pre-resolve those deps to this package so bundling works
 // even in empty temp dirs (fixes #1).
-const BUNDLED_DEPENDENCIES = ['commander', 'mcporter', 'jsonc-parser'] as const;
+const BUNDLED_DEPENDENCIES = ['commander', '@nimrobo/mcpporter-remote', 'jsonc-parser'] as const;
 const dependencyAliasPlugin = createLocalDependencyAliasPlugin([...BUNDLED_DEPENDENCIES]);
 
 export async function bundleOutput({
@@ -223,7 +223,7 @@ function resolveLocalDependency(specifier: string): string | undefined {
     }
     return localRequire.resolve(specifier);
   } catch {
-    if (specifier === 'mcporter') {
+    if (specifier === '@nimrobo/mcpporter-remote') {
       // During development or unpublished builds there may not be an installed entry,
       // so fall back to the files inside the repo that represent the published surface.
       const fallbacks = [
@@ -252,6 +252,7 @@ async function ensureBundlerDeps(stagingDir: string): Promise<void> {
         return;
       }
       const target = path.join(nodeModulesDir, specifier);
+      await fs.mkdir(path.dirname(target), { recursive: true });
       await linkOrCopyDependency(sourceDir, target);
     })
   );
@@ -259,7 +260,7 @@ async function ensureBundlerDeps(stagingDir: string): Promise<void> {
 
 function resolveDependencyDirectory(specifier: (typeof BUNDLED_DEPENDENCIES)[number]): string | undefined {
   try {
-    if (specifier === 'mcporter') {
+    if (specifier === '@nimrobo/mcpporter-remote') {
       return packageRoot;
     }
     const pkgPath = localRequire.resolve(path.join(specifier, 'package.json'));

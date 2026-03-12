@@ -27,7 +27,7 @@ export interface EmitClientTemplateInput extends EmitTypesTemplateInput {
 export function renderTypesModule(input: EmitTypesTemplateInput): string {
   const lines: string[] = [];
   lines.push(...renderHeader(input.metadata));
-  lines.push("import type { CallResult } from 'mcporter';");
+  lines.push("import type { CallResult } from '@nimrobo/mcpporter-remote';");
   lines.push('');
   lines.push(`export interface ${input.interfaceName} {`);
   input.docs.forEach((entry, index) => {
@@ -52,7 +52,7 @@ export function renderTypesModule(input: EmitTypesTemplateInput): string {
 export function renderClientModule(input: EmitClientTemplateInput): string {
   const lines: string[] = [];
   lines.push(...renderHeader(input.metadata));
-  lines.push("import { createRuntime, createServerProxy, wrapCallResult } from 'mcporter';");
+  lines.push("import { createRuntime, createServerProxy, wrapCallResult } from '@nimrobo/mcpporter-remote';");
   lines.push(`import type { ${input.interfaceName} } from '${input.typesImportPath}';`);
   lines.push('');
   lines.push('type RuntimeInstance = Awaited<ReturnType<typeof createRuntime>>;');

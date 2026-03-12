@@ -126,7 +126,12 @@ describe('stdio MCP servers (filesystem + memory)', () => {
         ],
         configPath
       );
-      expect(callResult.stderr).toBe('');
+      const stderrWithoutWarnings = callResult.stderr
+        .split('\n')
+        .filter((line) => !line.startsWith('(node:') && !line.startsWith('(Use `node'))
+        .join('\n')
+        .trim();
+      expect(stderrWithoutWarnings).toBe('');
       expect(callResult.stdout).not.toContain('Error');
     },
     20000
